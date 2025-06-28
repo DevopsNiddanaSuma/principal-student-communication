@@ -80,4 +80,7 @@ def update_student(
             json.dump(students, f, indent=4)
         return {"message": f"Student with roll {old_roll} updated successfully."}
     else:
-        return {"error": f"No student found with roll number {old_roll}."}  
+        return {"error": f"No student found with roll number {old_roll}."} 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to Principal-Student App!"}
