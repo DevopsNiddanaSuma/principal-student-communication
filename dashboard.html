@@ -29,8 +29,9 @@
   </table>
 
   <script>
+    const apiBase="https://principal-student-communication.onrender.com";
     function fetchStudents() {
-      fetch("https://principal-student-communication.onrender.com/students")
+      fetch('${apiBase}/students')
 
         .then(res => res.json())
         .then(data => {
@@ -44,18 +45,25 @@
               <td><button onclick="deleteStudent('${student.roll}')">Delete</button></td>
             `;
           });
+        })
+        .catch(() =>{
+          document.getElementById("registerStatus").innerText="failed to load students!";
         });
     }
 
     function registerStudent() {
-      const name = document.getElementById("name").value;
-      const roll = document.getElementById("roll").value;
+      const name = document.getElementById("name").value.trim();
+      const roll = document.getElementById("roll").value.trim();
 
+      if(!name || !roll) {
+        document.getElementById("registerStatus").innerText="please enter both name and roll number";
+        return;
+      }
       const formData = new FormData();
       formData.append("name", name);
       formData.append("roll", roll);
 
-      fetch("https://principal-student-communication.onrender.com/register", {
+      fetch('${apiBase}/register', {
         method: "POST",
         body: formData
       })
@@ -65,17 +73,24 @@
         fetchStudents(); // Refresh list
         document.getElementById("name").value = "";
         document.getElementById("roll").value = "";
+      })
+      .catch(() =>{
+        document.getElementById("registerStatus").innerText="failed to register students!";
       });
     }
 
     function deleteStudent(roll) {
-  fetch(`https://principal-student-communication.onrender.com/delete/${roll}`, {
-    method: "DELETE"
-  })
-  .then(res => res.json())
-  .then(data => {
+      if(!confirm("Are you sure you want to delete the student?")) return;
+    fetch(`${apiBase}/delete/${roll}`, {
+      method: "DELETE"
+    })
+    .then(res => res.json())
+    .then(data => {
     alert(data.message || data.error);
     fetchStudents(); // Refresh list
+  })
+  .catch(() =>{
+    alert("failed to delete student");
   });
 }
 
