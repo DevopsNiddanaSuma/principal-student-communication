@@ -87,13 +87,13 @@
     })
     .then(res => res.json())
     .then(data => {
-    alert(data.message || data.error);
-    fetchStudents(); // Refresh list
-  })
-  .catch(() =>{
-    alert("failed to delete student");
-  });
-}
+     alert(data.message || data.error);
+     fetchStudents(); // Refresh list
+    })
+    .catch(() =>{
+      alert("failed to delete student");
+    });
+  }
 
 
     // Load students on page load
