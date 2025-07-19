@@ -25,6 +25,7 @@
     <tr>
       <th>Name</th>
       <th>Roll Number</th>
+      <th>Register At</th>
       <th>Action</th>
     </tr>
   </table>
@@ -37,12 +38,13 @@
         .then(res => res.json())
         .then(data => {
           const table = document.getElementById("studentTable");
-          table.innerHTML = "<tr><th>Name</th><th>Roll Number</th><th>Action</th></tr>";
+          table.innerHTML = "<tr><th>Name</th><th>Roll Number</th><th>Registered At</th><th>Action</th></tr>";
           data.forEach(student => {
             const row = table.insertRow();
             row.innerHTML = `
               <td>${student.name}</td>
               <td>${student.roll}</td>
+              <td>Registered</td>
               <td><button onclick="deleteStudent('${student.roll}')">Delete</button></td>
             `;
           });
