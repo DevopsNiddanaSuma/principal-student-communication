@@ -1,9 +1,30 @@
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import Request
 from fastapi import FastAPI, Form
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
-
+from datetime import datetime
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
+# Dummy credentials
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "1234"
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/login", response_class=HTMLResponse)
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        return RedirectResponse(url="/students", status_code=302)
+    else:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Invalid username or password"
+        })
 
 # Enable frontend access
 app.add_middleware(
@@ -22,7 +43,9 @@ if os.path.exists(FILE_NAME):
         students = json.load(f)
 else:
     students = []
-
+@app.get("/")
+def home():
+    return {"message":"welcome to the principal student app"}
 @app.post("/register")
 def register(name: str = Form(...), roll: str = Form(...)):
     # Check for duplicate roll numbers
@@ -58,7 +81,7 @@ def delete_student(roll: str):
         return {"message": f"Student with roll number {roll} deleted successfully."}
     else:
         return {"error": f"No student found with roll number {roll}."}  
-from fastapi import FastAPI, Form
+
 
 @app.put("/update")
 def update_student(
@@ -80,7 +103,4 @@ def update_student(
             json.dump(students, f, indent=4)
         return {"message": f"Student with roll {old_roll} updated successfully."}
     else:
-        return {"error": f"No student found with roll number {old_roll}."} 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to Principal-Student App!"}
+        return {"error": f"No student found with roll number {old_roll}."}  
