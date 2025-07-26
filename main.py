@@ -25,7 +25,10 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
             "request": request,
             "error": "Invalid username or password"
         })
-
+@app.get("/dashboard",response_class=HTMLResponse)
+async def dashboard(request: Request):
+    return
+templates.TemplateResponse("dashboard.html",{"request":request})
 # Enable frontend access
 app.add_middleware(
     CORSMiddleware,
