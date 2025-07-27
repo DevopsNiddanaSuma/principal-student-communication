@@ -1,140 +1,53 @@
-from fastapi import FastAPI, Form, Request
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi import Request
-from fastapi import FastAPI, Form, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import json
 import os
-from datetime import datetime
+
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-templates = Jinja2Templates(directory=".")
-# Dummy credentials
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "1234"
 
-@app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+USERS_FILE = "users.json"
 
-@app.post("/login", response_class=HTMLResponse)
-def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        return RedirectResponse(url="/students", status_code=302)
-    else:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-            "error": "Invalid username or password"
-        })
+# Create users.json file if not exists
+if not os.path.exists(USERS_FILE):
+    with open(USERS_FILE, "w") as f:
+        json.dump([], f)
 
-@app.get("/register", response_class=HTMLResponse)
-async def show_register_form(request: Request):
-    return templates.TemplateResponse("register.html", {"request": Request})
+@app.get("/", response_class=HTMLResponse)
+def show_login(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request, "message": ""})
 
-@app.post("/register")
-async def register_user(username: str = Form(...), password: str = Form(...), role: str = Form(...)):
-    user_data = {"username": username, "password": password, "role": role}
-
-    # Load or create users.json
-    try:
-        with open("users.json", "r") as f:
-            users = json.load(f)
-    except:
-        users = []
-
-    # Check if username already exists
-    for user in users:
-        if user["username"] == username:
-            return {"message": "Username already exists"}
-
-    users.append(user_data)
-
-    with open("users.json", "w") as f:
-        json.dump(users, f, indent=4)
-
-    return RedirectResponse("/login", status_code=302)
-
-@app.get("/dashboard",response_class=HTMLResponse)
-async def dashboard(request: Request):
-    return
-templates.TemplateResponse("dashboard.html",{"request":Request})
-# Enable frontend access
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-# File to store data
-FILE_NAME = "students.json"
-
-# Load existing data or create empty list
-if os.path.exists(FILE_NAME):
-    with open(FILE_NAME, "r") as f:
-        students = json.load(f)
-else:
-    students = []
-@app.get("/")
-def home():
-    return {"message":"welcome to the principal student app"}
-@app.post("/register")
-def register(name: str = Form(...), roll: str = Form(...)):
-    # Check for duplicate roll numbers
-    for student in students:
-        if student["roll"] == roll:
-            return {"error": f"Student with roll number {roll} already exists."}
-
-    student = {"name": name, "roll": roll}
-    students.append(student)
-
-    # Save to file
-    with open(FILE_NAME, "w") as f:
-        json.dump(students, f, indent=4)
-
-    return {"message": f"{name} registered successfully!", "total": len(students)}
-   
-
-@app.get("/students")
-def get_students():
-    return students
-@app.delete("/delete/{roll}")
-def delete_student(roll: str):
-    global students
-    original_count = len(students)
-
-    # Filter out student with matching roll number
-    students = [s for s in students if s["roll"] != roll]
-
-    if len(students) < original_count:
-        # Save updated list to JSON
-        with open(FILE_NAME, "w") as f:
-            json.dump(students, f, indent=4)
-        return {"message": f"Student with roll number {roll} deleted successfully."}
-    else:
-        return {"error": f"No student found with roll number {roll}."}  
-
-
-@app.put("/update")
-def update_student(
-    old_roll: str = Form(...),
-    new_name: str = Form(...),
-    new_roll: str = Form(...)
+@app.post("/signup")
+def signup(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...)
 ):
-    found = False
+    with open(USERS_FILE, "r") as f:
+        users = json.load(f)
+    for user in users:
+        if user["email"] == email:
+            return templates.TemplateResponse("login.html", {"request": request, "message": "User already exists!"})
+    users.append({"email": email, "password": password, "role": role})
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f)
+    return templates.TemplateResponse("login.html", {"request": request, "message": "Signup successful! Please login."})
 
-    for student in students:
-        if student["roll"] == old_roll:
-            student["name"] = new_name
-            student["roll"] = new_roll
-            found = True
-            break
-
-    if found:
-        with open(FILE_NAME, "w") as f:
-            json.dump(students, f, indent=4)
-        return {"message": f"Student with roll {old_roll} updated successfully."}
-    else:
-        return {"error": f"No student found with roll number {old_roll}."}  
+@app.post("/login")
+def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...)
+):
+    with open(USERS_FILE, "r") as f:
+        users = json.load(f)
+    for user in users:
+        if user["email"] == email and user["password"] == password and user["role"] == role:
+            return templates.TemplateResponse("login.html", {"request": request, "message": f"Login successful as {role}!"})
+    return templates.TemplateResponse("login.html", {"request": request, "message": "Invalid credentials!"})
