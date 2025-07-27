@@ -1,13 +1,16 @@
+from fastapi import FastAPI, Form, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi import Request
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import json
 import os
 from datetime import datetime
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=".")
 # Dummy credentials
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "1234"
@@ -25,10 +28,38 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
             "request": request,
             "error": "Invalid username or password"
         })
+
+@app.get("/register", response_class=HTMLResponse)
+async def show_register_form(request: Request):
+    return templates.TemplateResponse("register.html", {"request": Request})
+
+@app.post("/register")
+async def register_user(username: str = Form(...), password: str = Form(...), role: str = Form(...)):
+    user_data = {"username": username, "password": password, "role": role}
+
+    # Load or create users.json
+    try:
+        with open("users.json", "r") as f:
+            users = json.load(f)
+    except:
+        users = []
+
+    # Check if username already exists
+    for user in users:
+        if user["username"] == username:
+            return {"message": "Username already exists"}
+
+    users.append(user_data)
+
+    with open("users.json", "w") as f:
+        json.dump(users, f, indent=4)
+
+    return RedirectResponse("/login", status_code=302)
+
 @app.get("/dashboard",response_class=HTMLResponse)
 async def dashboard(request: Request):
     return
-templates.TemplateResponse("dashboard.html",{"request":request})
+templates.TemplateResponse("dashboard.html",{"request":Request})
 # Enable frontend access
 app.add_middleware(
     CORSMiddleware,
