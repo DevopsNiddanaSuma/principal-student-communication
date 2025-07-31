@@ -1,166 +1,120 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Dashboard - Student App</title>
-  <style>
-    body { font-family: Arial, padding: 20px; }
-    h2 { color: #2c3e50; }
-    input, button { padding: 8px; margin: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 10px; border: 1px solid #ccc; text-align: left; }
-    th { background-color: #f0f0f0; }
-    #registerStatus { margin-top: 10px; font-weight: bold; }
-  </style>
+    <title>Principal Registration and Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2, h3 { color: #2c3e50; }
+        .section { margin-top: 20px; }
+        .hidden { display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        button { padding: 5px 10px; background-color: #3498db; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #2980b9; }
+    </style>
 </head>
 <body>
+     <h2></h2>
+    <div class="section" id="registerSection">
+        <label>Username: <input type="text" id="regUsername"></label><br><br>
+        <label>Email: <input type="email" id="regEmail"></label><br><br>
+        <label>Password: <input type="password" id="regPassword"></label><br><br>
+        <button onclick="registerPrincipal()">Register</button>
+        <p id="registerMessage" style="color:green;"></p>
+    </div>
 
-  <h2>📥 Register Student</h2>
-  <input type="text" id="name" placeholder="Enter Name">
-  <input type="text" id="roll" placeholder="Enter Roll Number">
-  <button onclick="registerStudent()" id="registerBtn">Register</button>
-  <button onclick="updateStudent()" id="updateBtn" style="display:none;">Update</button>
-  <p id="registerStatus"></p>
+    <h2></h2>
+    <div class="section" id="loginSection">
+        <label>Username: <input type="text" id="loginUsername"></label><br><br>
+        <label>Password: <input type="password" id="loginPassword"></label><br><br>
+        <button onclick="loginPrincipal()">Login</button>
+        <p id="loginError" style="color:red;"></p>
+    </div>
 
-  <h2>📋 Registered Students</h2>
-  <table id="studentTable">
-    <tr>
-      <th>Name</th>
-      <th>Roll Number</th>
-      <th>Registered At</th>
-      <th>Action</th>
-    </tr>
-  </table>
+    <div class="dashboard hidden">
+        <h3>Registered Students</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Roll Number</th>
+                    <th>Registered At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+        </table>
+    </div>
 
-  <script>
-    const apiBase = "https://principal-student-communication.onrender.com";
-    const localTimeMap = {}; // store registration times locally
-    let editingRoll = null;  // track which roll number is being edited
+    <script>
+        function registerPrincipal() {
+            const username = document.getElementById("regUsername").value;
+            const email = document.getElementById("regEmail").value;
+            const password = document.getElementById("regPassword").value;
 
-    function fetchStudents() {
-      fetch(`${apiBase}/students`)
-        .then(res => res.json())
-        .then(data => {
-          const table = document.getElementById("studentTable");
-          table.innerHTML = "<tr><th>Name</th><th>Roll Number</th><th>Registered At</th><th>Action</th></tr>";
-          data.forEach(student => {
-            const regTime = localTimeMap[student.roll] || "🕑 Not captured";
-            const row = table.insertRow();
-            row.innerHTML = `
-              <td>${student.name}</td>
-              <td>${student.roll}</td>
-              <td>${regTime}</td>
-              <td>
-                <button onclick="editStudent('${student.name}', '${student.roll}')">Edit</button>
-                <button onclick="deleteStudent('${student.roll}')">Delete</button>
-              </td>
-            `;
-          });
-        })
-        .catch(() => {
-          document.getElementById("registerStatus").innerText = "❌ Failed to load students!";
-        });
-    }
+            fetch("/register_principal", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `username=${username}&email=${email}&password=${password}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("registerMessage").innerText = data.message || data.error;
+            });
+        }
 
-    function registerStudent() {
-      const name = document.getElementById("name").value.trim();
-      const roll = document.getElementById("roll").value.trim();
+        function loginPrincipal() {
+            const username = document.getElementById("loginUsername").value;
+            const password = document.getElementById("loginPassword").value;
 
-      if (!name || !roll) {
-        document.getElementById("registerStatus").innerText = "⚠️ Please enter both name and roll number.";
-        return;
-      }
+            fetch("/login_principal", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `username=${username}&password=${password}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("loginSection").classList.add("hidden");
+                    document.getElementById("registerSection").classList.add("hidden");
+                    document.querySelector(".dashboard").classList.remove("hidden");
+                    loadStudents();
+                } else {
+                    document.getElementById("loginError").innerText = data.error;
+                }
+            });
+        }
 
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("roll", roll);
+        function loadStudents() {
+            fetch("/students")
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById("studentTable");
+                    table.innerHTML = "";
+                    data.forEach(student => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td>${student.name}</td>
+                            <td>${student.roll}</td>
+                            <td>${student.registered_at}</td>
+                            <td><button onclick="deleteStudent('${student.roll}')">Delete</button></td>
+                        `;
+                        table.appendChild(row);
+                    });
+                });
+        }
 
-      fetch(`${apiBase}/register`, {
-        method: "POST",
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("registerStatus").innerText = data.message || data.error;
-
-        // ✅ Save registration time
-        const timeNow = new Date().toLocaleString();
-        localTimeMap[roll] = timeNow;
-
-        fetchStudents(); // Refresh list
-        document.getElementById("name").value = "";
-        document.getElementById("roll").value = "";
-      })
-      .catch(() => {
-        document.getElementById("registerStatus").innerText = "❌ Failed to register student.";
-      });
-    }
-
-    function deleteStudent(roll) {
-      if (!confirm("Are you sure you want to delete this student?")) return;
-
-      fetch(`${apiBase}/delete/${roll}`, {
-        method: "DELETE"
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message || data.error);
-        delete localTimeMap[roll];
-        fetchStudents();
-      })
-      .catch(() => {
-        alert("❌ Failed to delete student.");
-      });
-    }
-
-    function editStudent(name, roll) {
-      document.getElementById("name").value = name;
-      document.getElementById("roll").value = roll;
-      document.getElementById("roll").disabled = true;
-
-      editingRoll = roll;
-
-      document.getElementById("registerBtn").style.display = "none";
-      document.getElementById("updateBtn").style.display = "inline-block";
-    }
-
-    function updateStudent() {
-      const name = document.getElementById("name").value.trim();
-      const roll = document.getElementById("roll").value.trim();
-
-      if (!name || !roll) {
-        document.getElementById("registerStatus").innerText = "⚠️ Please enter both name and roll number.";
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("roll", roll);
-
-      fetch(`${apiBase}/update`, {  // This assumes your backend supports /update route
-        method: "PUT",
-        body: formData
-      })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("registerStatus").innerText = data.message || data.error;
-
-        fetchStudents();
-        document.getElementById("name").value = "";
-        document.getElementById("roll").value = "";
-        document.getElementById("roll").disabled = false;
-
-        document.getElementById("registerBtn").style.display = "inline-block";
-        document.getElementById("updateBtn").style.display = "none";
-
-        editingRoll = null;
-      })
-      .catch(() => {
-        document.getElementById("registerStatus").innerText = "❌ Failed to update student.";
-      });
-    }
-
-    window.onload = fetchStudents;
-  </script>
-
+        function deleteStudent(roll) {
+            fetch(`/delete/${roll}`, {
+                method: "DELETE"
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert(result.message || result.error);
+                loadStudents();
+            });
+        }
+    </script>
 </body>
 </html>
