@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Principal Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background-color: #f9f9f9;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        input, select, button {
+            margin: 5px 0;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #ecf0f1;
+        }
+
+        .response-field {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Principal Dashboard</h1>
+
+    <!-- Registration -->
+    <div class="section" id="registerSection">
+        <h2>Register</h2>
+        <label>Username: <input type="text" id="regUsername"></label><br>
+        <label>Email: <input type="email" id="regEmail"></label><br>
+        <label>Password: <input type="password" id="regPassword"></label><br>
+        <button onclick="registerPrincipal()">Register</button>
+        <p id="registerMessage" style="color: green;"></p>
+    </div>
+
+    <!-- Login -->
+    <div class="section" id="loginSection">
+        <h2>Login</h2>
+        <label>Username: <input type="text" id="loginUsername"></label><br>
+        <label>Password: <input type="password" id="loginPassword"></label><br>
+        <button onclick="loginPrincipal()">Login</button>
+        <p id="loginError" style="color: red;"></p>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="section hidden" id="dashboard">
+        <h2>Registered Students</h2>
+        <table>
+            <thead>
+                <tr><th>Name</th><th>Roll</th><th>Registered At</th><th>Action</th></tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+        </table>
+
+        <h2>Student Leave Requests</h2>
+        <div id="requestsTable"></div>
+    </div>
+
+    <script>
+        const BASE_URL = "http://127.0.0.1:8000";
+
+        // Store login credentials
+        let principalUsername = "";
+        let principalPassword = "";
+
+        function registerPrincipal() {
+            const username = document.getElementById("regUsername").value;
+            const email = document.getElementById("regEmail").value;
+            const password = document.getElementById("regPassword").value;
+
+            fetch(`${BASE_URL}/register_principal`, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `username=${username}&email=${email}&password=${password}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("registerMessage").innerText = data.message || data.error;
+            });
+        }
+
+        function loginPrincipal() {
+            const username = document.getElementById("loginUsername").value;
+            const password = document.getElementById("loginPassword").value;
+
+            fetch(`${BASE_URL}/login_principal`, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `username=${username}&password=${password}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    principalUsername = username;
+                    principalPassword = password;
+
+                    document.getElementById("registerSection").classList.add("hidden");
+                    document.getElementById("loginSection").classList.add("hidden");
+                    document.getElementById("dashboard").classList.remove("hidden");
+
+                    loadStudents();
+                    loadRequests();
+                } else {
+                    document.getElementById("loginError").innerText = data.message || "Login failed";
+                }
+            });
+        }
+
+        function loadStudents() {
+            fetch(`${BASE_URL}/students`)
+            .then(res => res.json())
+            .then(data => {
+                const table = document.getElementById("studentTable");
+                table.innerHTML = "";
+                data.forEach(student => {
+                    table.innerHTML += `
+                        <tr>
+                            <td>${student.name}</td>
+                            <td>${student.roll}</td>
+                            <td>${student.registered_at}</td>
+                            <td><button onclick="deleteStudent('${student.roll}')">Delete</button></td>
+                        </tr>`;
+                });
+            });
+        }
+
+        function deleteStudent(roll) {
+            fetch(`${BASE_URL}/delete_student/${roll}`, { method: "DELETE" })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || data.error);
+                loadStudents();
+            });
+        }
+
+        function loadRequests() {
+            fetch(`${BASE_URL}/view_requests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `role=principal&username=${principalUsername}&password=${principalPassword}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById("requestsTable").innerText = data.error;
+                    return;
+                }
+
+                let html = `<table>
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Name</th><th>Roll</th><th>Reason</th>
+                            <th>Start</th><th>Return</th><th>Days</th>
+                            <th>Status</th><th>Response</th><th>Action</th>
+                        </tr>
+                    </thead><tbody>`;
+
+                data.forEach(req => {
+                    html += `
+                        <tr>
+                            <td>${req.id}</td>
+                            <td>${req.name}</td>
+                            <td>${req.roll}</td>
+                            <td>${req.reason}</td>
+                            <td>${req.start_date}</td>
+                            <td>${req.return_date}</td>
+                            <td>${req.total_days}</td>
+                            <td>${req.status}</td>
+                            <td>${req.response || ""}</td>
+                            <td>
+                                <select id="status_${req.id}">
+                                    <option>Approved</option>
+                                    <option>Rejected</option>
+                                    <option>Paused</option>
+                                </select><br>
+                                <input type="text" id="response_${req.id}" placeholder="Response message" class="response-field"><br>
+                                <button onclick="submitStatus(${req.id})">Submit</button>
+                            </td>
+                        </tr>`;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById("requestsTable").innerHTML = html;
+            });
+        }
+
+        function submitStatus(requestId) {
+            const status = document.getElementById(`status_${requestId}`).value;
+            const response = document.getElementById(`response_${requestId}`).value;
+
+            const body = `request_id=${Number(requestId)}&status=${status}&response=${encodeURIComponent(response)}&username=${principalUsername}&password=${principalPassword}`;
+
+            console.log("Submitting status update:", body); // Debugging
+
+            fetch(`${BASE_URL}/update_status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: body
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || data.error);
+                loadRequests();
+            });
+        }
+    </script>
+</body>
+</html>
