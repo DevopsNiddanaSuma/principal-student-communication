@@ -96,7 +96,7 @@
             }
 
             try {
-                const response = await fetch("/view_requests", {
+                const response = await fetch("http://127.0.0.1:8000/view_requests", {
                     method: "POST",
                     body: formData
                 });
