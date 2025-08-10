@@ -1,0 +1,12 @@
+[
+    {
+        "id": 1,
+        "name": "jaanu",
+        "roll": "210",
+        "emergency_type": "Injury",
+        "description": "hand facture",
+        "status": "Rejected",
+        "response": "no",
+        "timestamp": "2025-08-06 11:55:42"
+    }
+]
